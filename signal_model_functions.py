@@ -134,6 +134,55 @@ def global_reflection_model(n, theta, freq, d, n_layers, c=0.2998):
     return gamma
 
 
+def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, d, theta0,
+                       return_sum=False):
+    """
+    Function to perform a brute force search for the best index of refraction
+    for the sample.
+    :param freq_waveform: The frequency domain waveform from the area on the
+        sample of interest.
+    :param e0: The reference signal in the frequency domain
+    :param freq: The frequency array over which to solve
+    :param nr_array: The array of real index of refraction values to search over
+    :param ni_array: The array of imaginary index of refraction values to search
+        over. These should be negative
+    :param d: The thickness of the sample in mm. If given as 0, will use FSE
+        instead of BSE to calculate index of refraction
+    :param theta0: The incoming angle of the THzBeam in radians.
+    :return: The cost array. This is 5 dimensional. [y, x, nr, ni, freq]
+    """
+
+    ncols = freq_waveform.shape[0]
+    nrows = freq_waveform.shape[1]
+
+    if return_sum:
+        size = (ncols, nrows, len(nr_array), len(ni_array))
+    else:
+        size = (ncols, nrows, len(nr_array), len(ni_array), len(freq))
+
+    cost = np.zeros(size)
+
+    for y in range(ncols):
+        print('Row %d of %d' % (y+1, ncols))
+        for x in range(nrows):
+            # assume that user made freq_waveform from resized time domain
+            # waveform?
+            e2 = freq_waveform[y, x, :]
+            for i, nr in enumerate(nr_array):
+                for j, ni in enumerate(ni_array):
+                    n = np.array([nr, ni])
+
+                    raw_cost = half_space_mag_phase_equation(n, e0, e2, freq,
+                                                             d, theta0)
+
+                    if return_sum:
+                        cost[y, x, i, j] = np.sum(raw_cost)
+                    else:
+                        cost[y, x, i, j, :] = raw_cost
+
+    return cost
+
+
 def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
                                precision=1e-6, max_iter=1e4, gamma=0.01):
     """
@@ -261,35 +310,6 @@ def scipy_optimize_parameters(data, n0, e0, d, stop_index):
                 n_array[i, j, k] = complex(solution[0], solution[1])
 
     return n_array
-
-
-def brute_force_search(e0, e2, freq, nr_list, ni_list, d, theta0, step,
-                       stop_index, lb, ub, c=0.2998):
-    """
-    Manually searches over the given range of real and imaginary index of
-    refraction values to build a 2D cost map of the solution space
-    :return: the cost map for the given nr & ni values
-    """
-
-    # the cost map over given nr & ni list
-    cost = np.zeros((len(nr_list), len(ni_list), stop_index//step))
-
-    for i, nr in enumerate(nr_list):
-        for j, ni in enumerate(ni_list):
-            m = 0  # use a different counter for cost array
-            n = np.array([nr, ni])
-
-            for k in range(step//2, stop_index, step):
-                raw_cost = \
-                    half_space_mag_phase_equation(n, e0[k-lb:k+ub],
-                                                  e2[k-lb:k+ub],
-                                                  freq[k-lb:k+ub], d, theta0, c)
-
-                # try to emulate least squares
-                cost[i, j, m] = np.sum(raw_cost)
-                m += 1
-
-    return cost
 
 
 def half_space_mag_phase_equation(n_in, e0, e2, freq, d, theta0, k=None,
