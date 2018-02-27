@@ -96,3 +96,53 @@ def read_reference_data(filename, basedir=None, zero=True):
         optical_delay -= optical_delay[0]
 
     return optical_delay, ref_amp
+
+
+def make_c_scan(waveform, peak_bin, gate, signal_type, follow_gate_on=True):
+    """
+    Stand alone function to make a C-Scan given a waveform. This function is
+    identical to the make_c_scan method in THzData.
+    :param waveform: The waveform that is output by a THzProc code
+    :param peak_bin: The peak_bin from a THzProc code
+    :param gate: The gate from a THzProc Code
+    :param signal_type: Determines how the C-Scan in made.
+        signal_type choices
+                0: Use Peak to Peak voltage with the front gates regardless of
+                    whether follow gate is on or not.
+                1: Use Peak to Peak voltage with the follow gates if on. If
+                    follow gate is not on then use peak to peak voltage across
+                    entire waveform
+    :param follow_gate_on:
+    """
+
+    y_step = waveform.shape[0]
+    x_step = waveform.shape[1]
+    c_scan = np.zeros((y_step, x_step))
+
+    if follow_gate_on:
+        idx = 1
+    else:
+        idx = 0
+
+    # use Vpp within the front gates regardless of whether follow gate is on or
+    # not the gates are ABSOLUTE INDEX POSITION and DO NOT account for
+    # differences in height of the front surface
+    if signal_type == 0:
+        max_amp = np.amax(waveform[:, :, gate[0][0]:gate[0][1]], axis=2)
+        min_amp = np.amin(waveform[:, :, gate[0][0]:gate[0][1]], axis=2)
+        c_scan = max_amp - min_amp
+
+    # use Vpp within the follow gates if one, else use Vpp across the entire
+    # A-Scan.
+    elif signal_type == 1:
+        if follow_gate_on:
+            idx = 1
+        else:
+            idx = 0
+        for i in range(y_step):
+            for j in range(x_step):
+                max_amp = waveform[i, j, peak_bin[0, idx, i, j]]
+                min_amp = waveform[i, j, peak_bin[1, idx, i, j]]
+                c_scan[i, j] = max_amp - min_amp
+
+    return c_scan
