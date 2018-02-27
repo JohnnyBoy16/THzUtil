@@ -149,8 +149,16 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, d, theta0,
     :param d: The thickness of the sample in mm. If given as 0, will use FSE
         instead of BSE to calculate index of refraction
     :param theta0: The incoming angle of the THzBeam in radians.
+    :param return_sum: Whether or not to return the sum over all frequencies at
+        a given location. This would basically be solving for the single best
+        index of refraction value over all frequencies. (Default: False)
     :return: The cost array. This is 5 dimensional. [y, x, nr, ni, freq]
     """
+
+    # if the sample contains a lot of data points and the brute force search
+    # grid is large, the cost array can actually take up more memory than
+    # there is available RAM. In that case it may be necessary to only solve
+    # for a single index of refraction value over all frequencies
 
     ncols = freq_waveform.shape[0]
     nrows = freq_waveform.shape[1]
@@ -187,8 +195,8 @@ def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
                                precision=1e-6, max_iter=1e4, gamma=0.01):
     """
     Function to perform a gradient descent search on the cost function for
-    material parameter estimation. The gradient descent algorith is very similar
-    to the one specified by Dorney et al. in reference [1].
+    material parameter estimation. The gradient descent algorithm is very
+    similar to the one specified by Dorney et al. in reference [1].
     :param n0: The initial guess for the complex index of refraction. The
         imaginary part must be negative to cause extinction
     :param e0: The reference waveform in the frequency domain
