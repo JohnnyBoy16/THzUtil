@@ -2,7 +2,9 @@
 Utility module that contains a variety of unrelated functions that are useful
 in data processing
 """
+import pdb
 import os
+import copy
 
 import pandas as pd
 import numpy as np
@@ -146,3 +148,25 @@ def make_c_scan(waveform, peak_bin, gate, signal_type, follow_gate_on=True):
                 c_scan[i, j] = max_amp - min_amp
 
     return c_scan
+
+
+def clear_small_defects(binary_image, min_area):
+    """
+    Clears defects that are smaller than the given area (in pixels) from the
+    binary_image
+    :param binary_image: A binary image
+    :param min_area: The smallest number of pixels a defect can contain and
+        still be considered a defect
+    """
+    from skimage.measure import regionprops, label
+
+    return_binary = copy.deepcopy(binary_image)
+
+    labeled_image = label(binary_image)
+
+    for defect in regionprops(labeled_image):
+        if defect.area < min_area:
+            for loc in defect.coords:
+                return_binary[loc[0], loc[1]] = not return_binary[loc[0], loc[1]]
+
+    return return_binary
