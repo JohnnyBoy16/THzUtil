@@ -2,6 +2,7 @@
 Contains functions that are used when modeling a signal, such as reflection
 and transmission coefficients.
 """
+import pdb
 
 import numpy as np
 
@@ -18,13 +19,18 @@ def reflection_coefficient(n1, n2, theta1=0.0, theta2=0.0):
     :return: The reflection coefficient
     """
 
+    if np.inf == np.abs(n1):
+        return 0
+
     if n2 == np.inf or n2 == -np.inf:
         return -1
 
     num = n1*np.cos(theta2) - n2*np.cos(theta1)
     denom = n1*np.cos(theta2) + n2*np.cos(theta1)
 
-    return num / denom
+    r = num / denom
+
+    return r
 
 
 def transmission_coefficient(n1, n2, theta1=0, theta2=0):
@@ -38,13 +44,15 @@ def transmission_coefficient(n1, n2, theta1=0, theta2=0):
     :return: The transmission coefficient
     """
 
-    if n2 == np.inf or n2 == -np.inf:
+    if np.abs(n1) == np.inf or np.abs(n2) == np.inf:
         return 0
 
     num = 2 * n1 * np.cos(theta1)
     denom = n1*np.cos(theta2) + n2*np.cos(theta1)
 
-    return num / denom
+    t = num / denom
+
+    return t
 
 
 def get_theta_out(n0, n1, theta0):
@@ -55,6 +63,9 @@ def get_theta_out(n0, n1, theta0):
     :param theta0: The angle of the incident ray in radians
     :return: theta1: The angle of the outgoing ray in radians
     """
+
+    if np.abs(n0) == np.inf:
+        return 0
 
     return np.arcsin(n0/n1 * np.sin(theta0))
 
