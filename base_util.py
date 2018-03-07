@@ -168,7 +168,8 @@ def clear_small_defects(binary_image, min_area):
     for defect in regionprops(labeled_image):
         if defect.area < min_area:
             for loc in defect.coords:
-                return_binary[loc[0], loc[1]] = not return_binary[loc[0], loc[1]]
+                return_binary[loc[0], loc[1]] = not return_binary[loc[0],
+                                                                  loc[1]]
 
     return return_binary
 
@@ -181,7 +182,6 @@ def combine_close_defects(region_list, bbox_list):
     defect_coords = list()
     already_found = list()
     for i in range(n_defects):
-        print(i)
         home_flaw = region_list[i]
         bbox = bbox_list[i]
         if i in already_found:
@@ -214,7 +214,7 @@ def search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, already_
         in_bb_cols = np.any(defect.coords[:, 1] > bbox[1]) and np.any(defect.coords[:, 1] < bbox[3])
         if in_bb_rows and in_bb_cols:
             already_found.append(i)
-            defect_coords = search_for_nearby_defect(defect, defect_list, bbox, bbox_list,
+            defect_coords = search_for_nearby_defect(defect, defect_list, bbox_list[i], bbox_list,
                                                      already_found)
 
             own_coords = np.r_[home_defect.coords, defect_coords]
