@@ -156,7 +156,8 @@ def clear_small_defects(binary_image, min_area):
     binary_image
     :param binary_image: A binary image
     :param min_area: The smallest number of pixels a defect can contain and
-        still be considered a defect
+        still be considered a defect. A region that has exactly this number of
+        pixel will not be removed.
     """
     from skimage.measure import regionprops, label
 
@@ -170,3 +171,55 @@ def clear_small_defects(binary_image, min_area):
                 return_binary[loc[0], loc[1]] = not return_binary[loc[0], loc[1]]
 
     return return_binary
+
+
+def combine_close_defects(region_list, bbox_list):
+    """
+    Driving function to find close defects
+    """
+    n_defects = len(region_list)
+    defect_coords = list()
+    already_found = list()
+    for i in range(n_defects):
+        print(i)
+        home_flaw = region_list[i]
+        bbox = bbox_list[i]
+        if i in already_found:
+            continue
+        else:
+            already_found.append(i)
+
+        nearby_coords = search_for_nearby_defect(home_flaw, region_list, bbox, bbox_list,
+                                                 already_found)
+
+        own_coords = np.r_[home_flaw.coords, nearby_coords]
+        defect_coords.append(own_coords)
+
+    return defect_coords
+
+
+def search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, already_found):
+    """
+    Searches a defect for nearby defects
+    """
+
+    own_coords = None
+    for i, defect in enumerate(defect_list):
+        if defect == home_defect:
+            continue
+        if i in already_found:
+            continue
+
+        in_bb_rows = np.any(defect.coords[:, 0] > bbox[0]) and np.any(defect.coords[:, 0] < bbox[2])
+        in_bb_cols = np.any(defect.coords[:, 1] > bbox[1]) and np.any(defect.coords[:, 1] < bbox[3])
+        if in_bb_rows and in_bb_cols:
+            already_found.append(i)
+            defect_coords = search_for_nearby_defect(defect, defect_list, bbox, bbox_list,
+                                                     already_found)
+
+            own_coords = np.r_[home_defect.coords, defect_coords]
+
+    if own_coords is None:
+        own_coords = np.asarray(home_defect.coords)
+
+    return own_coords

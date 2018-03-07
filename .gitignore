@@ -3,3 +3,6 @@
 
 # ignore compiled python files
 __pycache__
+
+# ignore the testing file
+test.py
