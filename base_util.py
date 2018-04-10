@@ -39,7 +39,11 @@ def gaussian_2d(data, a, x0, y0, std_x, std_y):
     :return: The function value at the given (x, y) location
     """
 
-    y, x = data
+    try:
+        y, x = data
+    except ValueError:
+        x = data
+        y = 0
 
     f = a * np.exp(-((x-x0)**2/(2*std_x**2) + (y-y0)**2/(2*std_y**2)))
 
@@ -203,7 +207,8 @@ def combine_close_defects(region_list, bbox_list):
 
 
 # private function
-def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, already_found):
+def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, 
+                              already_found):
     """
     Recursively searches a defect for nearby defects. A defect is considered
     nearby if at least 1 of its own coordinates is inside of another defect's
@@ -240,7 +245,8 @@ def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, already
         # home defect that it is within the bounding box
         if in_bb_rows and in_bb_cols:
             already_found.append(i)
-            defect_coords = _search_for_nearby_defect(defect, defect_list, bbox_list[i], bbox_list,
+            defect_coords = _search_for_nearby_defect(defect, defect_list, 
+                                                      bbox_list[i], bbox_list,
                                                       already_found)
 
             own_coords = np.r_[own_coords, defect_coords]
