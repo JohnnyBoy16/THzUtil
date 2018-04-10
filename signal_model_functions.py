@@ -145,8 +145,8 @@ def global_reflection_model(n, theta, freq, d, n_layers, c=0.2998):
     return gamma
 
 
-def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, d, theta0,
-                       return_sum=False):
+def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d, 
+                       theta0, return_sum=False):
     """
     Function to perform a brute force search for the best index of refraction
     for the sample.
@@ -157,6 +157,9 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, d, theta0,
     :param nr_array: The array of real index of refraction values to search over
     :param ni_array: The array of imaginary index of refraction values to search
         over. These should be negative
+    :param n_media: an array that contains the index of refraction of the media
+        on either side of the sample, with [0] containing the first media and
+        [1] containing the media behind the sample
     :param d: The thickness of the sample in mm. If given as 0, will use FSE
         instead of BSE to calculate index of refraction
     :param theta0: The incoming angle of the THzBeam in radians.
@@ -191,8 +194,8 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, d, theta0,
                 for j, ni in enumerate(ni_array):
                     n = np.array([nr, ni])
 
-                    raw_cost = half_space_mag_phase_equation(n, e0, e2, freq,
-                                                             d, theta0)
+                    raw_cost = half_space_mag_phase_equation(n, n_media, e0, e2,
+                                                             freq, d, theta0)
 
                     if return_sum:
                         cost[y, x, i, j] = np.sum(raw_cost)
@@ -250,10 +253,10 @@ def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
         n_step = 100  # reset steps to a large value so it won't stop right away
         k_step = 100
         while (n_step > precision or k_step > precision) and n_iter < max_iter:
-            prev_n = n_sol.real
-            prev_k = n_sol.imag
+            prev_n = n_sol[1].real
+            prev_k = n_sol[1].imag
 
-            theta1 = get_theta_out(1.0, n_sol, theta0)
+            theta1 = get_theta_out(n_sol[0], n_sol[1], theta0)
             model = half_space_model(e0[:stop], freq[:stop], n_sol, d,
                                      theta0, theta1)
 
@@ -283,25 +286,28 @@ def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
             n_step = np.abs(new_n - prev_n)
             k_step = np.abs(new_k - prev_k)
 
-            n_sol = complex(new_n, new_k)  # update n_sol
+            n_sol[1] = complex(new_n, new_k)  # update n_sol
 
             n_iter += 1
 
         if n_iter == max_iter:
             print('Max iterations reached at frequency %0.3f!' % freq[i])
 
-        n_array[i] = n_sol  # store solution at that frequency
+        n_array[i] = n_sol[1]  # store solution at that frequency
 
     return n_array
 
 
-def scipy_optimize_parameters(data, n0, e0, d, stop_index):
+def scipy_optimize_parameters(data, n0, n_media, e0, d, stop_index):
     """
     Function that is a wrapper for scipy's optimization algorithm to determine
     the material parameters of the sample
     :param data: An instance of the THzProc Data class
     :param n0: the initial guess for the material's index of refraction.
         Expected to be an array that is [nr, ni].
+    :param n_media: the index of refraction for the media on either side of the
+        sample. [0] is the index of refraction for the media in front of the
+        sample. [1] is the index of refraction for the media behind the sample
     :param e0: The reference waveform
     :param d: The thickness of the sample in mm
     :param stop_index: The index that corresponds to the highes frequency that
@@ -310,6 +316,10 @@ def scipy_optimize_parameters(data, n0, e0, d, stop_index):
         sample
     """
     from scipy import optimize
+
+    # optimize function does not like imaginary values, so put real and
+    # imaginary part in an array
+    n0 = np.array([n0.real, n0.imag])
 
     theta0 = data.theta0
 
@@ -322,7 +332,7 @@ def scipy_optimize_parameters(data, n0, e0, d, stop_index):
             for k in range(stop_index):
                 solution = \
                     optimize.fmin(half_space_mag_phase_equation, n0,
-                                  args=(e0[:stop_index], e2[:stop_index],
+                                  args=(n_media, e0[:stop_index], e2[:stop_index],
                                         data.freq[:stop_index], d, theta0, k),
                                   disp=False)
 
@@ -331,14 +341,18 @@ def scipy_optimize_parameters(data, n0, e0, d, stop_index):
     return n_array
 
 
-def half_space_mag_phase_equation(n_in, e0, e2, freq, d, theta0, k=None,
+def half_space_mag_phase_equation(n1, n_media, e0, e2, freq, d, theta0, k=None,
                                   c=0.2998):
     """
     Function wrapper for the half space model that compares the magnitude and
     phase of the model that is derived from the reference signal (e0) to the
     experimental data (e2)
-    :param n_in: The index of refraction to build the model with. Expected to be
+    :param n1: The index of refraction to build the model with. Expected to be
         a length 2 array [nr, ni].
+    :param n_media: The index of refraction of the media in front of and behind
+        the sample. Should be a length two array with [0] as the index of
+        refraction of the 1st media and [1] as the index of refraction of the
+        media behind the sample.
     :param e0: The reference signal in the frequency domain
     :param e2: The data signal in the frequency domain
     :param freq: The frequency array that define the frequency values in the
@@ -352,11 +366,14 @@ def half_space_mag_phase_equation(n_in, e0, e2, freq, d, theta0, k=None,
     """
     # scipy doesn't like to deal with complex values, so let n_in be a 2 element
     # array and then make it complex
-    n_out = n_in[0] + 1j * n_in[1]
+    n_out = np.zeros(3, dtype=complex)
+    n_out[0] = n_media[0]
+    n_out[1] = n1[0] + 1j * n1[1]
+    n_out[2] = n_media[1]
 
     # determine the angle in the material for the given index of refraction
     # and theta0
-    theta1 = get_theta_out(1.0, n_out, theta0)
+    theta1 = get_theta_out(n_out[0], n_out[1], theta0)
 
     # build the model
     model = half_space_model(e0, freq, n_out, d, theta0, theta1, c)
@@ -394,24 +411,25 @@ def half_space_model(e0, freq, n, d, theta0, theta1, c=0.2998):
     :param e0: The reference signal in the frequency domain
     :param freq: Array that contains the frequency values over which to build
         the model
-    :param n: The complex index of refraction of the sample
+    :param n: A length 3 complex array containing the index of refraction of
+        the media before, the sample and the media after.
     :param theta0: Angle of the THz beam in radians
     :param theta1: Angle of the THz beam in the material
     :param c: The speed of light in mm/ps (Default: 0.2998)
     """
     # transmission from free space into sample
-    t01 = transmission_coefficient(1.0, n, theta0, theta1)
+    t01 = transmission_coefficient(n[0], n[1], theta0, theta1)
     # transmission from sample into free space
-    t10 = transmission_coefficient(n, 1.0, theta1, theta0)
+    t10 = transmission_coefficient(n[1], n[0], theta1, theta0)
 
     # reflection at front surface
-    r01 = reflection_coefficient(1.0, n, theta0, theta1)
+    r01 = reflection_coefficient(n[0], n[1], theta0, theta1)
     # reflection at back surface
-    r10 = reflection_coefficient(n, 1.0, theta1, theta0)
+    r10 = reflection_coefficient(n[1], n[2], theta1, theta0)
 
     # t_delay also includes imaginary n value, so signal should decrease
     # factor of two accounts for back and forth travel
-    t_delay = 2 * n*d / (c*np.cos(theta1))
+    t_delay = 2 * n[1]*d / (c*np.cos(theta1))
 
     shift = np.exp(-1j * 2*np.pi * freq * t_delay)
 
