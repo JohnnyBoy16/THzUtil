@@ -205,14 +205,18 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d,
     return cost
 
 
-def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
-                               precision=1e-6, max_iter=1e4, gamma=0.01):
+def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0, 
+                               stop=None, precision=1e-6, max_iter=1e4, 
+                               gamma=0.01):
     """
     Function to perform a gradient descent search on the cost function for
     material parameter estimation. The gradient descent algorithm is very
     similar to the one specified by Dorney et al. in reference [1].
     :param n0: The initial guess for the complex index of refraction. The
         imaginary part must be negative to cause extinction
+    :param n_media: The indices of refraction of the media on either side of
+        the sample material. [0] is the index of refraction of the front
+        material and [1] is the index of refraction of the back material.
     :param e0: The reference waveform in the frequency domain
     :param e2: The sample waveform in the frequency domain
     :param theta0: The initial angle of the THz beam in radians
@@ -248,7 +252,7 @@ def parameter_gradient_descent(n0, e0, e2, theta0, d, freq, start=0, stop=None,
     n_array = np.zeros(stop, dtype=complex)
 
     for i in range(start, stop):
-        n_sol = n0  # initial guess
+        n_sol = np.array([n_media[0], n0, n_media[1]])  # initial guess
         n_iter = 0
         n_step = 100  # reset steps to a large value so it won't stop right away
         k_step = 100
@@ -310,7 +314,7 @@ def scipy_optimize_parameters(data, n0, n_media, e0, d, stop_index):
         sample. [1] is the index of refraction for the media behind the sample
     :param e0: The reference waveform
     :param d: The thickness of the sample in mm
-    :param stop_index: The index that corresponds to the highes frequency that
+    :param stop_index: The index that corresponds to the highest frequency that
         we are looking to solve for
     :return: The value of n that best matches our model to the data across the
         sample
@@ -323,12 +327,22 @@ def scipy_optimize_parameters(data, n0, n_media, e0, d, stop_index):
 
     theta0 = data.theta0
 
-    n_array = np.zeros((data.y_step, data.x_step, stop_index), dtype=complex)
+    # for now let this function handle what happens if data has been resized
+    if data.has_been_resized:
+        y_step = data.y_step_small
+        x_step = data.x_step_small
+        freq_waveform = data.freq_waveform_small
+    else:
+        y_step = data.y_step
+        x_step = data.x_step
+        freq_waveform = data.freq_waveform
+
+    n_array = np.zeros((y_step, x_step, stop_index), dtype=complex)
 
     for i in range(data.y_step):
         print('Row %d of %d' % (i+1, data.y_step))
         for j in range(data.x_step):
-            e2 = data.freq_waveform[i, j, :]
+            e2 = freq_waveform[i, j, :]
             for k in range(stop_index):
                 solution = \
                     optimize.fmin(half_space_mag_phase_equation, n0,
