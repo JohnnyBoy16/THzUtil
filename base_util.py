@@ -25,7 +25,7 @@ def gaussian_1d(x, a, mu, sigma):
     return f
 
 
-def gaussian_2d(data, a, x0, y0, std_x, std_y):
+def gaussian_2d(x, y, a, x0, y0, std_x, std_y):
     """
     2D Gaussian function that can be used to curve fit or whenever a Gaussian
     function is needed for something.
@@ -39,13 +39,44 @@ def gaussian_2d(data, a, x0, y0, std_x, std_y):
     :return: The function value at the given (x, y) location
     """
 
-    try:
-        y, x = data
-    except ValueError:
-        x = data
-        y = 0
+    # try:
+    #     y, x = data
+    # except ValueError:
+    #     x = data
+    #     y = 0
 
     f = a * np.exp(-((x-x0)**2/(2*std_x**2) + (y-y0)**2/(2*std_y**2)))
+
+    return f
+
+
+def sinc_2d(x, y, x0=0, y0=0, a=1, sigma=1, normalize=False):
+    """
+    2D sinc function
+    :param x: A list of x coordinates
+    :param y: A list of y coordinates
+    :param x0: The x center of the central peak (Default = 0)
+    :param y0: The y center of the central peak (Default = 0)
+    :param a: The amplitude of the central peak (Default = 1)
+    :param normalize: Whether or not to use the normalized sinc function
+        (Default = False). See Wikipedia article for more information
+    """
+
+    r = np.sqrt((x-x0)**2 + (y-y0)**2)
+
+    # setting the numpy error state to ignore divide by zero and invalid
+    # floating operations within the with statement. In the np.where() function
+    # call all possible outcomes are evaluated, so even though we have it set
+    # to avoid division by zero errors it will still throw a warning. The
+    # error are only ignored while in the with statement
+
+    if normalize:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            f = a * np.sin(np.pi**2*r) / (np.pi**2*r)
+
+    else:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            f = a * np.where(r == 0, 1, np.sin(sigma*r) / (sigma*r))
 
     return f
 
@@ -207,7 +238,7 @@ def combine_close_defects(region_list, bbox_list):
 
 
 # private function
-def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, 
+def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
                               already_found):
     """
     Recursively searches a defect for nearby defects. A defect is considered
@@ -245,7 +276,7 @@ def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
         # home defect that it is within the bounding box
         if in_bb_rows and in_bb_cols:
             already_found.append(i)
-            defect_coords = _search_for_nearby_defect(defect, defect_list, 
+            defect_coords = _search_for_nearby_defect(defect, defect_list,
                                                       bbox_list[i], bbox_list,
                                                       already_found)
 
