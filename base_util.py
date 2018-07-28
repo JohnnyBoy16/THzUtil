@@ -45,6 +45,37 @@ def gaussian_2d(x, y, a, x0, y0, std_x, std_y):
     return f
 
 
+def sinc_2d(x, y, x0=0, y0=0, a=1, sigma=1, normalize=False):
+    """
+    2D sinc function
+    :param x: A list of x coordinates
+    :param y: A list of y coordinates
+    :param x0: The x center of the central peak (Default = 0)
+    :param y0: The y center of the central peak (Default = 0)
+    :param a: The amplitude of the central peak (Default = 1)
+    :param normalize: Whether or not to use the normalized sinc function
+        (Default = False). See Wikipedia article for more information
+    """
+
+    r = np.sqrt((x-x0)**2 + (y-y0)**2)
+
+    # setting the numpy error state to ignore divide by zero and invalid
+    # floating operations within the with statement. In the np.where() function
+    # call all possible outcomes are evaluated, so even though we have it set
+    # to avoid division by zero errors it will still throw a warning. The
+    # error are only ignored while in the with statement
+
+    if normalize:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            f = a * np.sin(np.pi**2*r) / (np.pi**2*r)
+
+    else:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            f = a * np.where(r == 0, 1, np.sin(sigma*r) / (sigma*r))
+
+    return f
+
+
 def parabolic_equation(data, a, b, c, d, e):
     """
     Creates a paraboloid of the form ...
