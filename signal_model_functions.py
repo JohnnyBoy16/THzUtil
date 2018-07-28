@@ -145,7 +145,7 @@ def global_reflection_model(n, theta, freq, d, n_layers, c=0.2998):
     return gamma
 
 
-def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d, 
+def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d,
                        theta0, return_sum=False):
     """
     Function to perform a brute force search for the best index of refraction
@@ -205,8 +205,8 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d,
     return cost
 
 
-def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0, 
-                               stop=None, precision=1e-6, max_iter=1e4, 
+def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
+                               stop=None, precision=1e-6, max_iter=1e4,
                                gamma=0.01):
     """
     Function to perform a gradient descent search on the cost function for
@@ -339,9 +339,9 @@ def scipy_optimize_parameters(data, n0, n_media, e0, d, stop_index):
 
     n_array = np.zeros((y_step, x_step, stop_index), dtype=complex)
 
-    for i in range(data.y_step):
+    for i in range(y_step):
         print('Row %d of %d' % (i+1, data.y_step))
-        for j in range(data.x_step):
+        for j in range(x_step):
             e2 = freq_waveform[i, j, :]
             for k in range(stop_index):
                 solution = \

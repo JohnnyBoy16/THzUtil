@@ -25,12 +25,13 @@ def gaussian_1d(x, a, mu, sigma):
     return f
 
 
-def gaussian_2d(data, a, x0, y0, std_x, std_y):
+def gaussian_2d(x, y, a, x0, y0, std_x, std_y):
     """
     2D Gaussian function that can be used to curve fit or whenever a Gaussian
-    function is needed for something.
-    :param data: A 2xn matrix of location where the data is to be calculated at
-        Y locations are in the first row and X locations are the 2nd
+    function is needed for something. If trying to use to make a 2D function,
+    params x and y should be 2D matrices from np.meshgrid
+    :param x: The x array over which the data is to be calculated.
+    :param y: The y array over which the data is to be calculated.
     :param a: The amplitude of the Gaussian
     :param x0: X center location
     :param y0: Y center location
@@ -38,12 +39,6 @@ def gaussian_2d(data, a, x0, y0, std_x, std_y):
     :param std_y: Standard Deviation of y
     :return: The function value at the given (x, y) location
     """
-
-    try:
-        y, x = data
-    except ValueError:
-        x = data
-        y = 0
 
     f = a * np.exp(-((x-x0)**2/(2*std_x**2) + (y-y0)**2/(2*std_y**2)))
 
@@ -207,7 +202,7 @@ def combine_close_defects(region_list, bbox_list):
 
 
 # private function
-def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list, 
+def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
                               already_found):
     """
     Recursively searches a defect for nearby defects. A defect is considered
@@ -245,7 +240,7 @@ def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
         # home defect that it is within the bounding box
         if in_bb_rows and in_bb_cols:
             already_found.append(i)
-            defect_coords = _search_for_nearby_defect(defect, defect_list, 
+            defect_coords = _search_for_nearby_defect(defect, defect_list,
                                                       bbox_list[i], bbox_list,
                                                       already_found)
 
