@@ -146,7 +146,7 @@ def global_reflection_model(n, theta, freq, d, n_layers, c=0.2998):
 
 
 def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d,
-                       theta0, return_sum=False):
+                       theta0, start=0, stop=None, return_sum=False):
     """
     Function to perform a brute force search for the best index of refraction
     for the sample.
@@ -176,6 +176,11 @@ def brute_force_search(freq_waveform, e0, freq, nr_array, ni_array, n_media, d,
 
     ncols = freq_waveform.shape[0]
     nrows = freq_waveform.shape[1]
+
+    if stop is not None:
+        freq = freq[start:stop]
+        e0 = e0[start:stop]
+        freq_waveform = freq_waveform[:, :, start:stop]
 
     if return_sum:
         size = (ncols, nrows, len(nr_array), len(ni_array))
@@ -451,8 +456,8 @@ def scipy_optimize_parameters(data, n0, n_media, e0, d, stop_index):
     return n_array
 
 
-def half_space_mag_phase_equation(n1, n_media, e0, e2, freq, d, theta0, k=None,
-                                  c=0.2998):
+def half_space_mag_phase_equation(n1, n_media, e0, e2, freq, d, theta0, start=0,
+                                  stop=None, k=None, c=0.2998):
     """
     Function wrapper for the half space model that compares the magnitude and
     phase of the model that is derived from the reference signal (e0) to the
