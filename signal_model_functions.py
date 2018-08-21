@@ -248,8 +248,8 @@ def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
     # References
     # [1] "Material parameter estimation with terahertz time domain
     #     spectroscopy", Dorney et al, 2001.
-    # [2] "Method for extraction of parameters in THz Time-Domain spectroscopy"
-    #     Duvillaret et al, 1996
+    # [2] "A Reliable Method for extraction of material parameters in THz
+    #     time-domain spectroscopy", Duvillaret et al, 1996
 
     if stop is None:
         stop = len(freq)
