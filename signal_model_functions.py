@@ -5,6 +5,7 @@ and transmission coefficients.
 import pdb
 
 import numpy as np
+from scipy.optimize import curve_fit
 
 
 def reflection_coefficient(n1, n2, theta1=0.0, theta2=0.0):
@@ -278,13 +279,27 @@ def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
             model_phase = np.unwrap(np.angle(T_model))
 
             # start the DC phase at zero this is discussed in [1] & [2]
-            data_phase -= data_phase[0]
+            # data_phase -= data_phase[0]
+            # model_phase -= model_phase[0]
+
+            # instead of just setting data_phase[0] = 0, we will use a linear
+            # fit with the part of the phase that is between the minimum and
+            # maximum frequency index. The experimental data is then adjusted
+            # based on the y-intercept of the best fit line, instead of simply
+            # setting the phase at f=0 to 0. This corrects for erroneous 2pi
+            # shifts in the unwrapped phase that are caused by noise at lower
+            # frequencies (< min_f_idx). This is discussed in Duvillaret paper.
+            popt, _ = curve_fit(linear_fit, freq[start:stop],
+                                data_phase[start:stop])
+            data_phase -= popt[1]
             model_phase -= model_phase[0]
 
             # use absolute value because phase can be negative
             # this is the error function for phase and magnitude
             rho = (np.abs(data_phase[i]) - np.abs(model_phase)[i])
             phi = np.log(np.abs(T_data))[i] - np.log(np.abs(T_model))[i]
+            # rho = (data_phase[i] - model_phase[i]) ** 2
+            # phi = (np.log(np.abs(T_data))[i] - np.log(np.abs(T_model))[i]) ** 2
 
             # adjust the guess
             new_n = prev_n + gamma * rho
@@ -305,6 +320,20 @@ def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
         n_array[i] = n_sol[1]  # store solution at that frequency
 
     return n_array
+
+
+def linear_fit(x, m, b):
+    """
+    Function to return the equation for a line. This is to be used for linear
+    curve-fitting problems.
+    :param x: The x-array of data over which to calculate the line
+    :param m: The slope of the line
+    :param b: The y-intercept of the line
+    """
+
+    y = m * x + b
+
+    return y
 
 
 def global_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
