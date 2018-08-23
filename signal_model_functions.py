@@ -257,6 +257,25 @@ def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
 
     n_array = np.zeros(stop, dtype=complex)
 
+    # calculate the transfer function of the data
+    T_data = e2[:stop] / e0[:stop]
+    data_phase = np.unwrap(np.angle(T_data))  # unwrapped phase
+
+    # instead of just setting data_phase[0] = 0, we will use a linear
+    # fit with the part of the phase that is between the minimum and
+    # maximum frequency index. The experimental data is then adjusted
+    # based on the y-intercept of the best fit line, instead of simply
+    # setting the phase at f=0 to 0. This corrects for erroneous 2pi
+    # shifts in the unwrapped phase that are caused by noise at lower
+    # frequencies (< min_f_idx). This is discussed in Duvillaret paper.
+    popt, _ = curve_fit(linear_fit, freq[start:stop],
+                        data_phase[start:stop])
+    data_phase -= popt[1]
+
+    # the natural log of the absolute value of the transfer function as used
+    # in the Duvillaret paper.
+    log_mag_data = np.log(np.abs(T_data))
+
     for i in range(start, stop):
         n_sol = np.array([n_media[0], n0, n_media[1]])  # initial guess
         n_iter = 0
@@ -275,29 +294,17 @@ def parameter_gradient_descent(n0, n_media, e0, e2, theta0, d, freq, start=0,
             T_data = e2[:stop] / e0[:stop]
 
             # use the unwrapped phase so there are no discontinuities
-            data_phase = np.unwrap(np.angle(T_data))
+            # data_phase = np.unwrap(np.angle(T_data))
             model_phase = np.unwrap(np.angle(T_model))
 
             # start the DC phase at zero this is discussed in [1] & [2]
             # data_phase -= data_phase[0]
-            # model_phase -= model_phase[0]
-
-            # instead of just setting data_phase[0] = 0, we will use a linear
-            # fit with the part of the phase that is between the minimum and
-            # maximum frequency index. The experimental data is then adjusted
-            # based on the y-intercept of the best fit line, instead of simply
-            # setting the phase at f=0 to 0. This corrects for erroneous 2pi
-            # shifts in the unwrapped phase that are caused by noise at lower
-            # frequencies (< min_f_idx). This is discussed in Duvillaret paper.
-            popt, _ = curve_fit(linear_fit, freq[start:stop],
-                                data_phase[start:stop])
-            data_phase -= popt[1]
             model_phase -= model_phase[0]
 
             # use absolute value because phase can be negative
             # this is the error function for phase and magnitude
             rho = (np.abs(data_phase[i]) - np.abs(model_phase)[i])
-            phi = np.log(np.abs(T_data))[i] - np.log(np.abs(T_model))[i]
+            phi = log_mag_data[i] - np.log(np.abs(T_model))[i]
             # rho = (data_phase[i] - model_phase[i]) ** 2
             # phi = (np.log(np.abs(T_data))[i] - np.log(np.abs(T_model))[i]) ** 2
 
