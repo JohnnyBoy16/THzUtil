@@ -20,10 +20,10 @@ def reflection_coefficient(n1, n2, theta1=0.0, theta2=0.0):
     :return: The reflection coefficient
     """
 
-    if np.abs(n1) == np.inf:
+    if np.any(np.abs(n1) == np.inf):
         return 0
 
-    if np.abs(n2) == np.inf:
+    if np.any(np.abs(n2) == np.inf):
         return -1
 
     num = n1*np.cos(theta2) - n2*np.cos(theta1)
@@ -45,7 +45,7 @@ def transmission_coefficient(n1, n2, theta1=0, theta2=0):
     :return: The transmission coefficient
     """
 
-    if np.abs(n1) == np.inf or np.abs(n2) == np.inf:
+    if np.any(np.abs(n1) == np.inf) or np.any(np.abs(n2) == np.inf):
         return 0
 
     num = 2 * n1 * np.cos(theta1)
