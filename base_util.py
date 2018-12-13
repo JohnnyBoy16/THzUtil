@@ -40,9 +40,19 @@ def gaussian_2d(x, y, a, x0, y0, std_x, std_y):
     :return: The function value at the given (x, y) location
     """
 
-    f = a * np.exp(-((x-x0)**2/(2*std_x**2) + (y-y0)**2/(2*std_y**2)))
+    f = a * (np.exp(-((x-x0)**2/(2*std_x**2) + (y-y0)**2/(2*std_y**2))))
 
     return f
+
+
+def expo_guassian_2d(x, y, a, x0, y0, std_x, std_y, lam_x, lam_y):
+    """
+    """
+
+    zx = np.exp(-(np.abs(x)/lam_x) * (1-np.exp(-np.abs(x)/std_x)))
+    zy = np.exp(-(np.abs(y)/lam_y) * (1-np.exp(-np.abs(y)/std_y)))
+
+    return zx + zy
 
 
 def sinc_2d(x, y, x0=0, y0=0, a=1, sigma=1, normalize=False):
@@ -212,29 +222,45 @@ def combine_close_defects(region_list, bbox_list):
     Driving function to find close defects
     """
     n_defects = len(region_list)
-    defect_coords = list()
-    already_found = list()
+    global_found = list()
     for i in range(n_defects):
+        if i in [defect for local_flaw in global_found for defect in local_flaw]:
+            continue
+
         home_flaw = region_list[i]
         bbox = bbox_list[i]
-        if i in already_found:
-            continue
-        else:
-            already_found.append(i)
+        # global_found.append(i)
 
         # coords includes the defects own coordinates and the coordinates of
         # other defects it there are any nearby
-        coords = _search_for_nearby_defect(home_flaw, region_list, bbox,
-                                           bbox_list, already_found)
+        _, local_found = _search_for_nearby_defect(home_flaw, region_list,
+                                                   bbox, bbox_list)
+
+        for found in local_found:
+            for g in global_found:
+                if found in g:
+                    local_found += [flaw for flaw in g if flaw not in local_found]
+                    global_found.remove(g)
+                    break
+
+        global_found.append(local_found)
+
+    defect_coords = list()
+    for i, local_list in enumerate(global_found):
+        for j, defect_num in enumerate(local_list):
+            if j == 0:
+                coords = region_list[defect_num].coords
+            else:
+                coords = np.r_[coords, region_list[defect_num].coords]
 
         defect_coords.append(coords)
-
+    # pdb.set_trace()
     return defect_coords
 
 
 # private function
 def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
-                              already_found):
+                              local_found=None):
     """
     Recursively searches a defect for nearby defects. A defect is considered
     nearby if at least 1 of its own coordinates is inside of another defect's
@@ -252,10 +278,15 @@ def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
     """
 
     own_coords = home_defect.coords
+
+    if local_found is None:
+        local_found = list()
+        for i, defect in enumerate(defect_list):
+            if defect == home_defect:
+                local_found.append(i)
+
     for i, defect in enumerate(defect_list):
-        if defect == home_defect:
-            continue
-        if i in already_found:
+        if defect == home_defect or i in local_found:
             continue
 
         # whether or not the defect is within the bounding rows of home_defect
@@ -270,11 +301,11 @@ def _search_for_nearby_defect(home_defect, defect_list, bbox, bbox_list,
         # if defect is within both the bounding row and bounding columns of
         # home defect that it is within the bounding box
         if in_bb_rows and in_bb_cols:
-            already_found.append(i)
-            defect_coords = _search_for_nearby_defect(defect, defect_list,
-                                                      bbox_list[i], bbox_list,
-                                                      already_found)
+            local_found.append(i)
+            defect_coords, local_found \
+                = _search_for_nearby_defect(defect, defect_list, bbox_list[i],
+                                            bbox_list, local_found)
 
             own_coords = np.r_[own_coords, defect_coords]
 
-    return own_coords
+    return own_coords, local_found
